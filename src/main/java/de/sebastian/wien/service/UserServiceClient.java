@@ -27,7 +27,14 @@ public class UserServiceClient {
         webClient = WebClient.builder().baseUrl(endpoint).build();
     }
 
-    public Optional<User> fetchUserById(Long id) {
+    /**
+     * Fetch data from external endpoint via WebClient to provide asynchronicity and timeouts.
+     * The responses of /users/{id} and /posts?userId={id} are merged to provide a comprehensive result.
+     *
+     * @param id
+     * @return
+     */
+    public Optional<User> fetchUserByIdWithPosts(Long id) {
         try {
             User fetchedUser = webClient.get()
                 .uri(uriBuilder -> uriBuilder.path("/users/{id}").build(id))

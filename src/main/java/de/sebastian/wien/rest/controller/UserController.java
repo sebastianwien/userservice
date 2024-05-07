@@ -20,7 +20,7 @@ public class UserController {
 
     @GetMapping(value = "/users/{id}", produces = "application/json")
     public ResponseEntity<User> getUser(@PathVariable Long id) {
-        return userServiceClient.fetchUserById(id)
+        return userServiceClient.fetchUserByIdWithPosts(id)
             .map(ResponseEntity::ok)
             .orElse(ResponseEntity.notFound().build());
     }
