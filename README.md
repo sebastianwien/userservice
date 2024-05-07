@@ -1,19 +1,21 @@
 # UserService web app
 
-simple web app to fetch data asynchronously from external endpoint https://jsonplaceholder.typicode.com merge the result and provide via JSON.
+Simple web app to fetch data asynchronously from external endpoint https://jsonplaceholder.typicode.com
 
-no persistation, tested with hurl as an file based API endpoint testing tool.
+The result is merged and provided via JSON.
 
-usage:
+OpenAPI: http://localhost:8080/v3/api-docs
+
+No persistation, tested with hurl (https://hurl.dev/) as an file based API endpoint testing tool.
 
 Debian: ``apt-get install hurl``
 
 Mac: ``brew install hurl``
 
-usage:
+Usage:
 ``hurl --test -v user-service.hurl``
 
-output:
+Output:
 ```
 > hurl --test -v user-service.hurl
 user-service.hurl: Running [1/1]
