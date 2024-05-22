@@ -7,15 +7,19 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.web.reactive.function.client.WebClientResponseException;
 
-import java.time.Duration;
 import java.util.Arrays;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 @Slf4j
 @Component
 public class UserServiceClient {
+
+    public static final int TIMEOUT_IN_MILLIS = 100;
 
     @Value("${api.endpoint}")
     private String endpoint;
@@ -28,7 +32,7 @@ public class UserServiceClient {
     }
 
     /**
-     * Fetch data from external endpoint via WebClient to provide asynchronicity and timeouts.
+     * Fetch data from external endpoint via WebClient to provide asynchronicity and handle timeouts.
      * The responses of /users/{id} and /posts?userId={id} are merged to provide a comprehensive result.
      *
      * @param id
@@ -36,26 +40,32 @@ public class UserServiceClient {
      */
     public Optional<User> fetchUserByIdWithPosts(Long id) {
         try {
-            User fetchedUser = webClient.get()
-                .uri(uriBuilder -> uriBuilder.path("/users/{id}").build(id))
-                .retrieve()
-                .bodyToMono(User.class)
-                .block(Duration.ofSeconds(5));
-
-            if (fetchedUser != null) {
-                UserPost[] postsArray = webClient.get()
-                    .uri(uriBuilder -> uriBuilder.path("/posts").queryParam("userId", id).build())
-                    .retrieve()
-                    .bodyToMono(UserPost[].class)
-                    .block(Duration.ofSeconds(5));
-
-                if (postsArray != null) {
-                    fetchedUser.setPosts(Arrays.asList(postsArray));
-                }
+            User user = fetchUser(id).get(TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS);
+            try {
+                fetchUserPosts(id).thenAccept(posts -> user.setPosts(Arrays.asList(posts))).get(TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                log.warn(String.format("Timeout while fetching users %s posts within %s ms", id, TIMEOUT_IN_MILLIS));
             }
-            return Optional.ofNullable(fetchedUser);
-        } catch (WebClientResponseException e) {
+            return Optional.of(user);
+        } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            log.warn(String.format("Unable to fetch user %s", id));
             return Optional.empty();
         }
+    }
+
+    private CompletableFuture<User> fetchUser(Long userId) {
+        return webClient.get()
+            .uri(uriBuilder -> uriBuilder.path("/users/{id}").build(userId))
+            .retrieve()
+            .bodyToMono(User.class)
+            .toFuture();
+    }
+
+    private CompletableFuture<UserPost[]> fetchUserPosts(Long userId) {
+        return webClient.get()
+            .uri(uriBuilder -> uriBuilder.path("/posts").queryParam("userId", userId).build())
+            .retrieve()
+            .bodyToMono(UserPost[].class)
+            .toFuture();
     }
 }
